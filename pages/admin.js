@@ -1,8 +1,6 @@
 import { supabase } from '../lib/supabaseClient'
 
 export default function Admin() {
-  return <h1>Admin Dashboard</h1>;
-}
   async function applyMultiplier(team, multiplier) {
     const { data, error } = await supabase
       .from('picks')
