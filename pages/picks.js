@@ -3,45 +3,49 @@ import { supabase } from '../lib/supabaseClient'
 
 export default function Picks() {
   const [games, setGames] = useState([])
-  const [selectedTeam, setSelectedTeam] = useState('')
-  const [weekNo, setWeekNo] = useState(1)
   const [playerName, setPlayerName] = useState('')
+  const [selectedTeam, setSelectedTeam] = useState('')
   const [message, setMessage] = useState('')
+  const [currentWeek, setCurrentWeek] = useState(null)
 
-  // Load all games for the week
   useEffect(() => {
-    async function loadGames() {
-      const { data, error } = await supabase
+    async function loadWeekAndGames() {
+      const { data: settings } = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'current_week')
+        .single()
+      const week = parseInt(settings.value, 10)
+      setCurrentWeek(week)
+
+      const { data: gamesData } = await supabase
         .from('games')
         .select('*')
-        .eq('week_no', weekNo)
-      if (error) console.error(error)
-      else setGames(data)
+        .eq('week_no', week)
+      setGames(gamesData)
     }
-    loadGames()
-  }, [weekNo])
+    loadWeekAndGames()
+  }, [])
 
   async function submitPick(e) {
     e.preventDefault()
+    if (!currentWeek) return
+
     const { data, error } = await supabase.from('picks').insert([
       {
         player_name: playerName,
-        week_no: weekNo,
+        week_no: currentWeek,
         team: selectedTeam,
         multiplier: 1
       }
     ])
-    if (error) {
-      setMessage('Error: ' + error.message)
-      console.error(error)
-    } else {
-      setMessage('Pick submitted!')
-    }
+    if (error) setMessage('Error: ' + error.message)
+    else setMessage('Pick submitted!')
   }
 
   return (
     <div>
-      <h1>Submit Your Pick</h1>
+      <h1>Submit Your Pick for Week {currentWeek}</h1>
       <form onSubmit={submitPick}>
         <input
           type="text"
@@ -50,11 +54,6 @@ export default function Picks() {
           onChange={(e) => setPlayerName(e.target.value)}
           required
         />
-        <select value={weekNo} onChange={(e) => setWeekNo(Number(e.target.value))}>
-          {[...Array(18).keys()].map(n => (
-            <option key={n+1} value={n+1}>Week {n+1}</option>
-          ))}
-        </select>
         <select value={selectedTeam} onChange={(e) => setSelectedTeam(e.target.value)} required>
           <option value="">Select a team</option>
           {games.map(g => (
